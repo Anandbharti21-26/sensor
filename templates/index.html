@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Sensor CRC Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>IoT Monitor</h2>
+                <p>CRC Analysis</p>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#dashboard" class="active">Dashboard</a></li>
+                    <li><a href="#controls">Controls</a></li>
+                    <li><a href="#analytics">Analytics</a></li>
+                    <li><a href="#history">History</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="export-csv-btn" class="btn btn-outline">Export CSV</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Real-Time Sensor Packet Integrity Detection</h1>
+                </div>
+                <div class="server-status" id="server-status">
+                    <span class="status-dot"></span> Backend Connected
+                </div>
+            </header>
+
+            <!-- Controls Section -->
+            <section id="controls" class="section-card">
+                <h3>Simulation Controls</h3>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <h4>Generate Packets</h4>
+                        <button id="btn-valid" class="btn btn-success">Generate Valid Packet</button>
+                        <button id="btn-corrupt-temp" class="btn btn-danger">Corrupt Temperature</button>
+                        <button id="btn-corrupt-hum" class="btn btn-danger">Corrupt Humidity</button>
+                        <button id="btn-corrupt-pres" class="btn btn-danger">Corrupt Pressure</button>
+                        <button id="btn-corrupt-rand" class="btn btn-warning">Random Corruption</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h4>Real-Time Simulation</h4>
+                        <div class="flex-row">
+                            <select id="sim-interval" class="form-select">
+                                <option value="1000">1 second</option>
+                                <option value="2000" selected>2 seconds</option>
+                                <option value="5000">5 seconds</option>
+                                <option value="10000">10 seconds</option>
+                            </select>
+                            <select id="sim-probability" class="form-select">
+                                <option value="0">0% Corruption</option>
+                                <option value="10">10% Corruption</option>
+                                <option value="20" selected>20% Corruption</option>
+                                <option value="30">30% Corruption</option>
+                                <option value="50">50% Corruption</option>
+                                <option value="100">100% Corruption</option>
+                            </select>
+                        </div>
+                        <div class="flex-row mt-1">
+                            <button id="btn-start-sim" class="btn btn-primary">Start Simulation</button>
+                            <button id="btn-stop-sim" class="btn btn-secondary" disabled>Stop Simulation</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Grid -->
+            <section id="dashboard" class="dashboard-grid">
+                <!-- Sensor Cards -->
+                <div class="card sensor-card temp">
+                    <h3>Temperature</h3>
+                    <div class="value" id="current-temp">-- °C</div>
+                </div>
+                <div class="card sensor-card hum">
+                    <h3>Humidity</h3>
+                    <div class="value" id="current-hum">-- %</div>
+                </div>
+                <div class="card sensor-card pres">
+                    <h3>Pressure</h3>
+                    <div class="value" id="current-pres">-- hPa</div>
+                </div>
+
+                <!-- CRC Status Panel -->
+                <div class="card status-card">
+                    <h3>CRC Analysis</h3>
+                    <div class="status-indicator" id="packet-status">WAITING</div>
+                    <div class="crc-details">
+                        <div class="crc-item">
+                            <span class="label">Original CRC:</span>
+                            <span class="value font-mono" id="original-crc">--</span>
+                        </div>
+                        <div class="crc-item">
+                            <span class="label">Calculated CRC:</span>
+                            <span class="value font-mono" id="calculated-crc">--</span>
+                        </div>
+                        <div class="crc-item">
+                            <span class="label">Result:</span>
+                            <span class="value font-bold" id="crc-result">--</span>
+                        </div>
+                        <div class="crc-item">
+                            <span class="label">Corrupted Sensor:</span>
+                            <span class="value font-bold" id="corrupted-sensor">None</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Packet Statistics -->
+                <div class="card stats-card">
+                    <h3>Packet Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="label">Total Packets</span>
+                            <span class="value" id="stat-total">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Valid Packets</span>
+                            <span class="value text-success" id="stat-valid">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Corrupted Packets</span>
+                            <span class="value text-danger" id="stat-corrupted">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Corruption Rate</span>
+                            <span class="value text-warning" id="stat-rate">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section id="analytics" class="section-card">
+                <div class="flex-between">
+                    <h3>Analytics</h3>
+                    <select id="chart-filter" class="form-select">
+                        <option value="10">Last 10 packets</option>
+                        <option value="25" selected>Last 25 packets</option>
+                        <option value="50">Last 50 packets</option>
+                        <option value="100">Last 100 packets</option>
+                    </select>
+                </div>
+                
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="humChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="presChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="analytics-summary mt-2">
+                    <div class="summary-box">
+                        <h4>Averages</h4>
+                        <p>Temp: <span id="avg-temp">--</span> °C</p>
+                        <p>Hum: <span id="avg-hum">--</span> %</p>
+                        <p>Pres: <span id="avg-pres">--</span> hPa</p>
+                    </div>
+                    <div class="summary-box">
+                        <h4>Min / Max</h4>
+                        <p>Temp: <span id="min-temp">--</span> / <span id="max-temp">--</span></p>
+                        <p>Hum: <span id="min-hum">--</span> / <span id="max-hum">--</span></p>
+                        <p>Pres: <span id="min-pres">--</span> / <span id="max-pres">--</span></p>
+                    </div>
+                    <div class="summary-box">
+                        <h4>Corruption Analysis</h4>
+                        <p>Most Corrupted: <span id="most-corrupted" class="font-bold text-danger">--</span></p>
+                        <ul id="corruption-breakdown" class="text-sm">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Packet History Table -->
+            <section id="history" class="section-card">
+                <div class="flex-between">
+                    <h3>Packet History</h3>
+                    <div class="table-controls">
+                        <input type="text" id="search-id" class="form-input" placeholder="Search ID...">
+                        <select id="filter-status" class="form-select">
+                            <option value="ALL">All</option>
+                            <option value="VALID">Valid</option>
+                            <option value="CORRUPTED">Corrupted</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="packets-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Time</th>
+                                <th>Temp (°C)</th>
+                                <th>Hum (%)</th>
+                                <th>Pres (hPa)</th>
+                                <th>Orig CRC</th>
+                                <th>Calc CRC</th>
+                                <th>Status</th>
+                                <th>Corrupted</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packets-body">
+                            <tr><td colspan="9" class="text-center">Loading packets...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Packet Details Modal -->
+    <div id="packet-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Packet Details <span id="modal-packet-id"></span></h2>
+            
+            <div class="modal-grid">
+                <div class="modal-col">
+                    <h3>Original Values</h3>
+                    <p><strong>Temperature:</strong> <span id="m-orig-temp"></span> °C</p>
+                    <p><strong>Humidity:</strong> <span id="m-orig-hum"></span> %</p>
+                    <p><strong>Pressure:</strong> <span id="m-orig-pres"></span> hPa</p>
+                    <p><strong>CRC-32:</strong> <span id="m-orig-crc" class="font-mono"></span></p>
+                </div>
+                <div class="modal-col">
+                    <h3>Received Values</h3>
+                    <p><strong>Temperature:</strong> <span id="m-recv-temp"></span> °C</p>
+                    <p><strong>Humidity:</strong> <span id="m-recv-hum"></span> %</p>
+                    <p><strong>Pressure:</strong> <span id="m-recv-pres"></span> hPa</p>
+                    <p><strong>CRC-32:</strong> <span id="m-calc-crc" class="font-mono"></span></p>
+                </div>
+            </div>
+            
+            <div class="modal-status mt-2 text-center p-1 rounded" id="m-status-box">
+                <h3 id="m-status"></h3>
+                <p id="m-corrupted-sensor"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
